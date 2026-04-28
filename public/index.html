@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POS System Pro</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- LOGIN -->
+    <section id="login-view" class="view">
+      <div class="card login-card">
+        <h1>🛒 POS Login</h1>
+        <form id="login-form">
+          <input type="email" id="email" placeholder="Email" required>
+          <input type="password" id="password" placeholder="Contraseña" required>
+          <button type="submit">Ingresar</button>
+          <p id="login-error" class="error"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- POS PRINCIPAL -->
+    <section id="pos-view" class="view hidden">
+      <header>
+        <div class="user-info" id="user-info"></div>
+        <nav class="nav-tabs" id="nav-tabs"></nav>
+        <button id="logout-btn">🚪 Cerrar</button>
+      </header>
+      <main class="content">
+        
+        <!-- VISTA CAJERO -->
+        <div id="view-cashier" class="view-panel">
+          <!-- Panel diario personal (solo visible para cajeras) -->
+          <div id="cashier-daily-stats" class="hidden" style="margin-bottom:15px">
+            <div class="card stat-card" style="text-align:center;max-width:300px;margin:0 auto">
+              <h3>📊 Mi Venta Hoy</h3>
+              <p id="my-sales-count" style="font-size:1.2rem">0 ventas</p>
+              <p id="my-sales-total" style="font-size:1.8rem;font-weight:bold;color:var(--success)">$0.00</p>
+            </div>
+          </div>
+
+          <div class="pos-grid">
+            <div class="products-panel">
+              <input type="text" id="search" placeholder="Buscar producto...">
+              <div id="products-list" class="grid"></div>
+            </div>
+            <div class="cart-panel">
+              <h2>🛍️ Carrito</h2>
+              <ul id="cart-list"></ul>
+              <div class="cart-total">Total: $<span id="total">0.00</span></div>
+              <button id="checkout-btn" disabled>Cobrar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISTA REPORTES (ADMIN) -->
+        <div id="view-reports" class="view-panel hidden">
+          <h2>📊 Centro de Reportes</h2>
+          <div style="display:flex;gap:10px;margin-bottom:15px">
+            <button id="btn-period-daily" class="active" data-period="daily" style="width:auto">📅 Diario</button>
+            <button id="btn-period-weekly" data-period="weekly" style="width:auto">📆 Semanal</button>
+            <button id="btn-period-monthly" data-period="monthly" style="width:auto">🗓️ Mensual</button>
+          </div>
+          <div class="report-cards">
+            <div class="card stat-card"><h3>🧾 Ventas</h3><p id="rep-total-sales">0</p></div>
+            <div class="card stat-card"><h3>💰 Ingresos Globales</h3><p id="rep-total-revenue">$0.00</p></div>
+            <div class="card stat-card"><h3>💵 Efectivo</h3><p id="rep-cash">$0.00</p></div>
+            <div class="card stat-card"><h3>💳 Tarjeta</h3><p id="rep-card">$0.00</p></div>
+          </div>
+
+          <h3 style="margin:20px 0 10px">👥 Desempeño por Cajera</h3>
+          <table id="cashier-table"><thead><tr><th>Cajera</th><th>Ventas</th><th>Total Recaudado</th></tr></thead><tbody></tbody></table>
+
+          <h3 style="margin:20px 0 10px">🧾 Últimas 10 Ventas</h3>
+          <table id="last-sales-table"><thead><tr><th>ID</th><th>Cajera</th><th>Items</th><th>Total</th><th>Método</th><th>Hora</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- VISTA PRODUCTOS (ADMIN) -->
+        <div id="view-products" class="view-panel hidden">
+          <h2>📦 Gestión de Productos</h2>
+          <form id="product-form" class="card">
+            <input type="hidden" id="prod-id">
+            <div class="form-grid">
+              <input type="text" id="prod-sku" placeholder="SKU" required>
+              <input type="text" id="prod-name" placeholder="Nombre" required>
+              <input type="number" step="0.01" id="prod-cost" placeholder="Costo" required>
+              <input type="number" step="0.01" id="prod-price" placeholder="Venta" required>
+              <input type="number" id="prod-stock" placeholder="Stock" required>
+              <select id="prod-category"><option value="">Sin categoría</option></select>
+              <input type="file" id="prod-img" accept="image/*">
+              <small id="current-img-info" style="color:#94a3b8; display:none;"></small>
+            </div>
+            <button type="submit" id="prod-btn">Guardar</button>
+            <button type="button" id="prod-cancel" class="hidden" style="background:#64748b">Cancelar</button>
+          </form>
+          <table id="products-table"><thead><tr><th>Img</th><th>SKU</th><th>Nombre</th><th>Cat</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- VISTA CATEGORÍAS (ADMIN) -->
+        <div id="view-categories" class="view-panel hidden">
+          <h2>🏷️ Categorías</h2>
+          <form id="category-form" class="card" style="display:flex;gap:10px">
+            <input type="text" id="cat-name" placeholder="Nombre" required style="flex:1">
+            <button type="submit" style="width:auto;background:#10b981">➕</button>
+          </form>
+          <table id="categories-table"><thead><tr><th>Nombre</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- VISTA USUARIOS (ADMIN) -->
+        <div id="view-users" class="view-panel hidden">
+          <h2>👥 Usuarios</h2>
+          <form id="user-form" class="card">
+            <div class="form-grid">
+              <input type="text" id="user-name" placeholder="Nombre" required>
+              <input type="email" id="user-email" placeholder="Email" required>
+              <input type="password" id="user-password" placeholder="Contraseña" required>
+              <select id="user-role"><option value="cashier">Cajera</option><option value="warehouse">Almacén</option></select>
+            </div>
+            <button type="submit">Crear</button>
+          </form>
+          <table id="users-table"><thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- VISTA LOGS (ADMIN) -->
+        <div id="view-logs" class="view-panel hidden">
+          <h2>📝 Logs</h2>
+          <table id="logs-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Rol</th><th>Acción</th><th>Detalle</th></tr></thead><tbody></tbody></table>
+        </div>
+
+      </main>
+    </section>
+
+    <!-- MODAL RECIBO -->
+    <div id="receipt-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>✅ Venta</h2>
+        <div id="receipt"></div>
+        <button id="close-receipt">Aceptar</button>
+      </div>
+    </div>
+
+    <!-- ÁREA IMPRESIÓN (Oculta, solo visible al imprimir) -->
+    <div id="receipt-print-area" style="display:none"></div>
+  </div>
+  <script src="/js/app.js"></script>
+</body>
+</html>

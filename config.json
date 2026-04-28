@@ -1,0 +1,44 @@
+{
+  "notifications": {
+    "lowStockThreshold": 10,
+    "lowStockEnabled": true,
+    "outOfStockEnabled": true,
+    "soundEnabled": true,
+    "autoRefresh": 5
+  },
+  "appearance": {
+    "theme": "light",
+    "itemsPerPage": 18
+  },
+  "invoice": {
+    "companyName": "CMAR COMPANY",
+    "companyAddress": "Calle Primera #14 Poblado Omja ",
+    "companyPhone": "📞 (53) 59-458930",
+    "companyEmail": "",
+    "companyRuc": "01012877682",
+    "footerMessage": "¡Vallase a la verga !",
+    "paperSize": "80mm",
+    "copies": 1,
+    "taxRate": 19
+  },
+  "security": {
+    "sessionTimeout": 30,
+    "autoLogout": true,
+    "requirePasswordForRefund": true,
+    "maxLoginAttempts": 3
+  },
+  "system": {
+    "currency": "USD",
+    "currencySymbol": "$",
+    "language": "es",
+    "dateFormat": "DD/MM/YYYY",
+    "timezone": "America/Santiago"
+  },
+  "printer": {
+    "printerType": "thermal",
+    "printerPort": "USB",
+    "printerModel": "Epson TM-T20",
+    "paperWidth": 80,
+    "autoCut": true
+  }
+}

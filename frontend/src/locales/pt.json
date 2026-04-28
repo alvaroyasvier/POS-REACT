@@ -1,0 +1,80 @@
+{
+  "app": {
+    "name": "POS System",
+    "tagline": "Gestão Profissional de Lojas"
+  },
+  "login": {
+    "title": "Entrar",
+    "email": "E-mail",
+    "password": "Senha",
+    "login_button": "Entrar no Sistema",
+    "logging_in": "Entrando...",
+    "demo_credentials": "Demonstração",
+    "error_credentials": "Credenciais inválidas",
+    "error_inactive": "Usuário inativo",
+    "error_session_active": "Já existe uma sessão ativa em outro dispositivo."
+  },
+  "layout": {
+    "logout": "Sair",
+    "admin": "Administrador",
+    "cashier": "Caixa",
+    "warehouse": "Armazém",
+    "notifications": "Notificações",
+    "new": "novas",
+    "read_all": "Marcar todas lidas",
+    "go_inventory": "Ir para inventário",
+    "closing_session": "Encerrando sessão...",
+    "sidebar_title": "POS System"
+  },
+  "caja": {
+    "point_of_sale": "Ponto de Venda",
+    "cart": "Carrinho de Compras",
+    "items": "itens",
+    "empty_cart": "Carrinho vazio",
+    "subtotal": "Subtotal",
+    "total": "Total a Pagar",
+    "checkout": "Cobrar",
+    "clear_cart": "Limpar carrinho",
+    "payment_methods": {
+      "cash": "Dinheiro",
+      "card": "Cartão",
+      "transfer": "Transferência"
+    },
+    "processing": "Processando venda...",
+    "confirm_sale": "Confirmar venda?",
+    "confirm_yes": "Sim, cobrar",
+    "confirm_cancel": "Cancelar",
+    "sale_error": "Erro na venda",
+    "no_products": "Nenhum produto disponível",
+    "search_placeholder": "Buscar produto...",
+    "filter_categories": "Categorias",
+    "all_categories": "Todas",
+    "clear_filters": "Limpar filtros",
+    "stock_low": "Últimas {stock}!",
+    "out_of_stock": "Esgotado"
+  },
+  "stock": {
+    "title": "Gestão de Stock",
+    "total_products": "Total de Produtos",
+    "total_stock": "Stock Total",
+    "low_stock": "Stock Baixo",
+    "out_of_stock": "Esgotado",
+    "search": "Buscar...",
+    "category": "Categoria",
+    "price_min": "Preço mín",
+    "price_max": "Preço máx",
+    "stock_min": "Stock mín",
+    "stock_max": "Stock máx",
+    "actions": {
+      "entry": "Entrada",
+      "exit": "Saída"
+    }
+  },
+  "config": {
+    "title": "Configuração do Sistema",
+    "saved": "Configuração salva",
+    "reset": "Redefinir Configuração",
+    "saving": "Salvando...",
+    "save": "Salvar Alterações"
+  }
+}
