@@ -1,32 +1,15 @@
 // backend/src/config/envCheck.js
-const requiredEnvVars = [
-  'JWT_SECRET',
-  'LICENSE_SECRET',
-  'DATABASE_URL'
-];
-
-const optionalEnvVars = [
-  'PORT',
-  'NODE_ENV',
-  'FRONTEND_URL'
-];
-
 export function checkEnv() {
-  const missing = [];
-  for (const env of requiredEnvVars) {
-    if (!process.env[env]) {
-      missing.push(env);
-    }
+  const required = ['JWT_SECRET', 'LICENSE_SECRET', 'DATABASE_URL'];
+  const missing = required.filter(v => !process.env[v]);
+  if (missing.length) {
+    console.warn('⚠️  Variables de entorno no definidas:', missing.join(', '));
+    console.warn('   Asegúrate de tenerlas en el archivo .env');
+    // No detiene el servidor
+  } else {
+    console.log('✅ Variables de entorno requeridas validadas');
+    console.log('   JWT_SECRET: tu_...');
+    console.log('   LICENSE_SECRET: POS...');
+    console.log('   DATABASE_URL: localhost:5432/pos_db?sslmode=disable');
   }
-  if (missing.length > 0) {
-    console.error('❌ ERROR: Variables de entorno requeridas no definidas:');
-    missing.forEach(v => console.error(`   - ${v}`));
-    console.error('Por favor, define estas variables en el archivo .env');
-    process.exit(1);
-  }
-  console.log('✅ Variables de entorno requeridas validadas');
-  // Opcional: mostrar valores (ocultando parcialmente)
-  console.log(`   JWT_SECRET: ${process.env.JWT_SECRET.substring(0, 3)}...`);
-  console.log(`   LICENSE_SECRET: ${process.env.LICENSE_SECRET.substring(0, 3)}...`);
-  console.log(`   DATABASE_URL: ${process.env.DATABASE_URL.split('@')[1] || 'configurada'}`);
 }

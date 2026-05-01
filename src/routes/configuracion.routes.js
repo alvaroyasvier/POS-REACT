@@ -3,6 +3,7 @@ import express from "express";
 import { verifyToken, isAdmin } from "../middlewares/auth.js";
 import { pool } from "../config/db.js";
 import { logAction } from "../services/auditService.js";
+import { startBackupScheduler } from "../services/backupScheduler.js"; // ← nuevo
 
 const router = express.Router();
 
@@ -48,6 +49,12 @@ const DEFAULT_CONFIG = {
     language: "es",
     dateFormat: "DD/MM/YYYY",
     timezone: "Europe/Madrid",
+    // ↓↓↓ NUEVOS CAMPOS PARA BACKUPS ↓↓↓
+    backupEnabled: false,
+    backupSchedule: "0 2 * * *", // diario a las 2 AM
+    backupRetentionDays: 30,
+    backupCloudProvider: "none", // "none", "s3", "b2"
+    backupCloudPath: "",
   },
   printer: {
     printerType: "thermal",
@@ -66,14 +73,17 @@ router.get("/", verifyToken, async (req, res) => {
     );
     let settings = DEFAULT_CONFIG;
     if (result.rows.length > 0) {
+      // Fusión profunda: mantenemos los defaults por si faltan claves nuevas
       settings = { ...DEFAULT_CONFIG, ...result.rows[0].settings };
     } else {
+      // Crear registro inicial con defaults
       await pool.query(
         `INSERT INTO configuraciones (id, settings) VALUES (1, $1::jsonb)`,
         [JSON.stringify(DEFAULT_CONFIG)],
       );
     }
 
+    // Sincronizar moneda por defecto (si existe tabla currencies)
     const currencyRes = await pool.query(
       "SELECT * FROM currencies WHERE is_default = true AND is_active = true LIMIT 1",
     );
@@ -88,6 +98,7 @@ router.get("/", verifyToken, async (req, res) => {
         currencyId: curr.id,
       };
     } else {
+      // Intentar tomar la primera moneda activa y ponerla como default
       const anyCurr = await pool.query(
         "SELECT * FROM currencies WHERE is_active = true ORDER BY name ASC LIMIT 1",
       );
@@ -110,7 +121,7 @@ router.get("/", verifyToken, async (req, res) => {
     res.json({ success: true, data: settings });
   } catch (err) {
     console.error("❌ Error obteniendo configuración:", err);
-    res.json({ success: true, data: DEFAULT_CONFIG }); // En caso de error devolvemos defaults, no exponemos error
+    res.json({ success: true, data: DEFAULT_CONFIG }); // Fallback seguro
   }
 });
 
@@ -120,6 +131,7 @@ router.post("/", verifyToken, isAdmin, async (req, res) => {
     const settings = req.body;
     const userId = req.user?.userId || req.user?.id;
 
+    // Si se está cambiando la moneda por defecto
     if (settings.system?.currencyId) {
       const { currencyId } = settings.system;
       await pool.query(
@@ -129,7 +141,7 @@ router.post("/", verifyToken, isAdmin, async (req, res) => {
         "UPDATE currencies SET is_default = true, updated_at = NOW() WHERE id = $1",
         [currencyId],
       );
-      delete settings.system.currencyId;
+      delete settings.system.currencyId; // no guardar este campo en el JSON
     }
 
     const existing = await pool.query(
@@ -147,6 +159,7 @@ router.post("/", verifyToken, isAdmin, async (req, res) => {
       );
     }
 
+    // Sincronizar de nuevo la moneda para la respuesta
     const currencyRes = await pool.query(
       "SELECT * FROM currencies WHERE is_default = true AND is_active = true LIMIT 1",
     );
@@ -162,9 +175,12 @@ router.post("/", verifyToken, isAdmin, async (req, res) => {
       };
     }
 
+    // 🔁 Reiniciar el programador de backups según la nueva configuración
+    await startBackupScheduler();
+
     await logAction("CONFIG_UPDATED", userId, req, {
       sections: Object.keys(settings).filter((k) => k !== "system"),
-      currencyChanged: settings.system?.currencyId ? true : false,
+      currencyChanged: !!req.body.system?.currencyId,
     });
     res.json({
       success: true,
@@ -187,6 +203,8 @@ router.post("/reset", verifyToken, isAdmin, async (req, res) => {
       `UPDATE configuraciones SET settings = $1::jsonb, updated_at = NOW(), updated_by = $2 WHERE id = 1`,
       [JSON.stringify(DEFAULT_CONFIG), userId],
     );
+
+    // Ajustar moneda por defecto si existe
     const currencyRes = await pool.query(
       "SELECT * FROM currencies WHERE is_default = true AND is_active = true LIMIT 1",
     );
@@ -202,6 +220,10 @@ router.post("/reset", verifyToken, isAdmin, async (req, res) => {
         currencyId: curr.id,
       };
     }
+
+    // 🔁 Reiniciar scheduler de backups con defaults
+    await startBackupScheduler();
+
     await logAction("CONFIG_RESET", userId, req, {});
     res.json({
       success: true,

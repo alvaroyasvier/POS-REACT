@@ -25,6 +25,8 @@ import {
   X,
   Upload,
   Trash2,
+  Play,
+  Download,
 } from "lucide-react";
 
 const applyTheme = (theme) => {
@@ -75,7 +77,7 @@ const getDefaultSettings = () => ({
     requirePasswordForRefund: true,
     maxLoginAttempts: 3,
     twoFactorAuth: false,
-    lockoutMinutes: 15, // ⬅️ NUEVO CAMPO
+    lockoutMinutes: 15,
   },
   system: {
     currency: "EUR",
@@ -85,6 +87,12 @@ const getDefaultSettings = () => ({
     timezone: "Europe/Madrid",
     decimalPlaces: 2,
     thousandsSeparator: ".",
+    // Campos de backup
+    backupEnabled: false,
+    backupSchedule: "0 2 * * *",
+    backupRetentionDays: 30,
+    backupCloudProvider: "none",
+    backupCloudPath: "",
   },
   printer: {
     printerType: "thermal",
@@ -121,6 +129,9 @@ export default function Configuracion() {
     { code: "pt", name: "Português" },
   ];
 
+  // Estado para backups
+  const [backups, setBackups] = useState([]);
+
   useEffect(() => {
     if (user && user.role !== "admin") {
       navigate("/caja");
@@ -142,6 +153,13 @@ export default function Configuracion() {
       navigate("/configuracion", { replace: true });
     }
   }, [location, user]);
+
+  // Cargar lista de backups al entrar en la pestaña sistema
+  useEffect(() => {
+    if (activeTab === "system") {
+      fetchBackups();
+    }
+  }, [activeTab]);
 
   const loadCurrencies = async () => {
     try {
@@ -303,6 +321,72 @@ export default function Configuracion() {
     }
   };
 
+  // Funciones de backup
+  const fetchBackups = async () => {
+    try {
+      const res = await api.get("/backups/list");
+      setBackups(res.data.data || []);
+    } catch (err) {
+      console.error("Error al cargar backups:", err);
+      Swal.fire("Error", "No se pudieron cargar los backups", "error");
+    }
+  };
+
+  const runManualBackup = async () => {
+    try {
+      const res = await api.post("/backups/run");
+      if (res.data.success) {
+        Swal.fire("Éxito", "Backup creado exitosamente", "success");
+        fetchBackups();
+      }
+    } catch (err) {
+      Swal.fire(
+        "Error",
+        err.response?.data?.message || "Error al ejecutar backup",
+        "error",
+      );
+    }
+  };
+
+  const downloadBackup = async (id, fileName) => {
+    try {
+      const response = await api.get(`/backups/download/${id}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      Swal.fire("Error", "No se pudo descargar el backup", "error");
+    }
+  };
+
+  const deleteBackup = async (id) => {
+    const result = await Swal.fire({
+      title: "¿Eliminar backup?",
+      text: "Esta acción no se puede deshacer.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc3545",
+      confirmButtonText: "Eliminar",
+      cancelButtonText: "Cancelar",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await api.delete(`/backups/${id}`);
+      Swal.fire("Eliminado", "Backup eliminado correctamente", "success");
+      fetchBackups();
+    } catch (err) {
+      Swal.fire("Error", "No se pudo eliminar", "error");
+    }
+  };
+
+  // Funciones de 2FA (sin cambios)
   const open2FAModal = () => {
     setTwoFAStep(1);
     setVerificationCode("");
@@ -435,6 +519,7 @@ export default function Configuracion() {
     setVerificationCode(value);
   };
 
+  // LicenciaInfo (componente interno)
   const LicenciaInfo = () => {
     const [license, setLicense] = useState(null);
     const [loadingLicense, setLoadingLicense] = useState(true);
@@ -1473,7 +1558,6 @@ export default function Configuracion() {
               </p>
             </div>
 
-            {/* NUEVO CAMPO: Tiempo de bloqueo en minutos */}
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <p className="font-medium text-gray-900 dark:text-white mb-2">
                 Tiempo de bloqueo (minutos)
@@ -1676,6 +1760,211 @@ export default function Configuracion() {
                 </select>
               </div>
             </div>
+
+            {/* === NUEVA SECCIÓN DE COPIAS DE SEGURIDAD === */}
+            <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 mb-4">
+                <Database
+                  className="text-blue-600 dark:text-blue-400"
+                  size={20}
+                />
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Copias de Seguridad Automáticas
+                </h3>
+              </div>
+
+              <div className="space-y-4">
+                {/* Activado / Desactivado */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      Activado
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Realiza backups automáticos de la base de datos
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.system.backupEnabled ?? false}
+                    onChange={() =>
+                      setSettings({
+                        ...settings,
+                        system: {
+                          ...settings.system,
+                          backupEnabled: !settings.system.backupEnabled,
+                        },
+                      })
+                    }
+                  />
+                </div>
+
+                {/* Programación (cron) */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <p className="font-medium text-gray-900 dark:text-white mb-2">
+                    Programación (formato cron)
+                  </p>
+                  <input
+                    type="text"
+                    value={settings.system.backupSchedule || "0 2 * * *"}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        system: {
+                          ...settings.system,
+                          backupSchedule: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    placeholder="Ej: 0 2 * * * (diario a las 2 AM)"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Ejemplos: "* * * * *" (cada minuto), "0 */6 * * *" (cada 6
+                    horas)
+                  </p>
+                </div>
+
+                {/* Retención */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <p className="font-medium text-gray-900 dark:text-white mb-2">
+                    Retención (días)
+                  </p>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={settings.system.backupRetentionDays ?? 30}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        system: {
+                          ...settings.system,
+                          backupRetentionDays: parseInt(e.target.value) || 30,
+                        },
+                      })
+                    }
+                    className="w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Los backups automáticos más antiguos se eliminarán
+                  </p>
+                </div>
+
+                {/* Almacenamiento en nube */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                  <p className="font-medium text-gray-900 dark:text-white mb-2">
+                    Almacenamiento en la nube
+                  </p>
+                  <select
+                    value={settings.system.backupCloudProvider || "none"}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        system: {
+                          ...settings.system,
+                          backupCloudProvider: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  >
+                    <option value="none">Ninguno (solo local)</option>
+                    <option value="s3">Amazon S3</option>
+                    <option value="b2">Backblaze B2</option>
+                  </select>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center gap-4 pt-2">
+                  <button
+                    onClick={runManualBackup}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                  >
+                    <Play size={16} /> Ejecutar Backup Ahora
+                  </button>
+                  <button
+                    onClick={fetchBackups}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition flex items-center gap-2"
+                  >
+                    <RefreshCw size={16} /> Refrescar Lista
+                  </button>
+                </div>
+
+                {/* Lista de últimos backups */}
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-2">
+                    Últimos backups
+                  </h4>
+                  {backups.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      No hay backups registrados.
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-100 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-3 py-2 text-left">Archivo</th>
+                            <th className="px-3 py-2 text-left">Tamaño</th>
+                            <th className="px-3 py-2 text-left">Fecha</th>
+                            <th className="px-3 py-2 text-left">Tipo</th>
+                            <th className="px-3 py-2">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {backups.map((b) => (
+                            <tr
+                              key={b.id}
+                              className="border-b border-gray-200 dark:border-gray-700"
+                            >
+                              <td className="px-3 py-2 font-mono text-xs">
+                                {b.file_name}
+                              </td>
+                              <td className="px-3 py-2">
+                                {(b.size / 1024).toFixed(1)} KB
+                              </td>
+                              <td className="px-3 py-2">
+                                {new Date(b.created_at).toLocaleString("es-ES")}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className={`badge ${
+                                    b.manual ? "badge-warning" : "badge-info"
+                                  }`}
+                                >
+                                  {b.manual ? "Manual" : "Automático"}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex gap-2 justify-center">
+                                  <button
+                                    onClick={() =>
+                                      downloadBackup(b.id, b.file_name)
+                                    }
+                                    className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded"
+                                    title="Descargar"
+                                  >
+                                    <Download size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteBackup(b.id)}
+                                    className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
+                                    title="Eliminar"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {/* FIN SECCIÓN BACKUPS */}
           </div>
         )}
 
@@ -1702,7 +1991,7 @@ export default function Configuracion() {
         </div>
       </div>
 
-      {/* Modal de 2FA */}
+      {/* MODAL 2FA */}
       {show2FAModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50">
           <div

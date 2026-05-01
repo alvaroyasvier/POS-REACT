@@ -10,10 +10,10 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cookieParser from "cookie-parser";
 
-// ✅ Validar variables de entorno ANTES de cualquier cosa
+// ✅ Validar variables de entorno
 dotenv.config();
 import { checkEnv } from "./src/config/envCheck.js";
-checkEnv(); // ← Lanza error si falta alguna variable crítica
+checkEnv();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -177,8 +177,9 @@ const importRoute = async (routePath, routeName) => {
       cashRoutes,
       currenciesRoutes,
       refundRoutes,
-      invoicesRoutes, // ← NUEVA RUTA: facturas
-      creditNotesRoutes, // ← NUEVA RUTA: notas de crédito
+      invoicesRoutes,
+      creditNotesRoutes,
+      backupRoutes, // ← NUEVO
     ] = await Promise.all([
       importRoute("./src/routes/auth.routes.js", "auth"),
       importRoute("./src/routes/products.routes.js", "products"),
@@ -192,8 +193,9 @@ const importRoute = async (routePath, routeName) => {
       importRoute("./src/routes/cash.routes.js", "cash"),
       importRoute("./src/routes/currencies.routes.js", "currencies"),
       importRoute("./src/routes/refunds.routes.js", "refunds"),
-      importRoute("./src/routes/invoices.routes.js", "invoices"), // ← NUEVO
-      importRoute("./src/routes/creditNotes.routes.js", "creditNotes"), // ← NUEVO
+      importRoute("./src/routes/invoices.routes.js", "invoices"),
+      importRoute("./src/routes/creditNotes.routes.js", "creditNotes"),
+      importRoute("./src/routes/backups.routes.js", "backups"), // ← NUEVO
     ]);
 
     const { requireLicense } =
@@ -201,6 +203,8 @@ const importRoute = async (routePath, routeName) => {
     const { startLicenseMonitor } =
       await import("./src/services/licenseMonitor.js");
     const { startLogCleanup } = await import("./src/services/auditService.js");
+    const { startBackupScheduler } =
+      await import("./src/services/backupScheduler.js"); // ← NUEVO
 
     // Rutas públicas
     app.use("/api/auth", authRoutes);
@@ -221,8 +225,9 @@ const importRoute = async (routePath, routeName) => {
     app.use("/api/cash", cashRoutes);
     app.use("/api/currencies", currenciesRoutes);
     app.use("/api/refunds", refundRoutes);
-    app.use("/api/invoices", invoicesRoutes); // ← NUEVO
-    app.use("/api/credit-notes", creditNotesRoutes); // ← NUEVO
+    app.use("/api/invoices", invoicesRoutes);
+    app.use("/api/credit-notes", creditNotesRoutes);
+    app.use("/api/backups", backupRoutes); // ← NUEVO
 
     // ============================================================================
     // SERVIDOR DE FRONTEND ESTÁTICO
@@ -276,6 +281,7 @@ const importRoute = async (routePath, routeName) => {
       setTimeout(() => {
         startLicenseMonitor().catch(console.error);
         startLogCleanup();
+        startBackupScheduler().catch(console.error); // ← NUEVO
       }, 2000);
     });
   } catch (err) {
