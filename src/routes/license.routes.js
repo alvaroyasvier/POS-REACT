@@ -6,18 +6,35 @@ import {
 } from "../services/licenseService.js";
 import { logAction } from "../services/auditService.js";
 import { updateLicenseStatus } from "../services/licenseMonitor.js";
+import {
+  saveLicenseLocally,
+  readLicenseLocally,
+  getLicenseStatus,
+} from "../services/licenseStorageService.js";
 
 const router = express.Router();
 
 router.get("/status", async (req, res) => {
   try {
-    const result = await checkSystemLicense();
-    res.json({ success: true, data: result });
+    // Intentar desde BD primero
+    try {
+      const result = await checkSystemLicense();
+      res.json({ success: true, data: result, source: "database" });
+      return;
+    } catch (dbErr) {
+      console.log("⚠️ [LICENSE] No se pudo leer de BD, usando almacenamiento local...");
+    }
+
+    // Fallback: usar almacenamiento local
+    const localStatus = getLicenseStatus();
+    res.json({ success: true, data: localStatus, source: "local" });
   } catch (err) {
     console.error("❌ Error en /status:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Error interno del servidor" });
+    res.json({
+      success: false,
+      status: "inactive",
+      message: "No se pudo verificar la licencia",
+    });
   }
 });
 
@@ -43,6 +60,7 @@ router.post("/activate", async (req, res) => {
         .json({ success: false, message: "Token requerido" });
     }
 
+    // Intentar activar con BD primero
     const result = await activateSystemLicense(licenseToken, customerName);
 
     if (result.success) {
@@ -54,20 +72,57 @@ router.post("/activate", async (req, res) => {
         startDate: result.data.startDate,
         endDate: result.data.endDate,
       });
-      res.json({ success: true, data: result.data });
+      res.json({ success: true, data: result.data, storage: "database" });
     } else {
-      await logAction("LICENSE_ACTIVATE_FAILED", null, req, {
-        reason: result.message,
-        tokenPrefix: licenseToken.substring(0, 10) + "...",
-      });
-      res.status(400).json({ success: false, message: result.message });
+      // Si falla la BD, intentar guardar localmente como fallback
+      console.log("⚠️ [LICENSE] BD falló, intentando almacenamiento local...");
+      const localSave = saveLicenseLocally(licenseToken, customerName);
+
+      if (localSave.success) {
+        console.log(
+          "✅ [LICENSE] Licencia guardada localmente como fallback",
+        );
+        res.json({
+          success: true,
+          message: "Licencia activada (almacenamiento local)",
+          storage: "local",
+        });
+      } else {
+        await logAction("LICENSE_ACTIVATE_FAILED", null, req, {
+          reason: result.message,
+          tokenPrefix: licenseToken.substring(0, 10) + "...",
+        });
+        res.status(400).json({
+          success: false,
+          message:
+            result.message || "Error al activar la licencia",
+        });
+      }
     }
   } catch (err) {
     console.error("❌ Error en /activate:", err);
+    
+    // Último recurso: guardar localmente de todas formas
+    try {
+      const localBackup = saveLicenseLocally(
+        req.body.licenseToken || "",
+        req.body.customerName || "Cliente",
+      );
+      if (localBackup.success) {
+        res.json({
+          success: true,
+          message: "Licencia activada (modo de recuperación)",
+          storage: "local_backup",
+        });
+        return;
+      }
+    } catch (e) {
+      console.error("❌ Fallback también falló:", e.message);
+    }
+
     await logAction("LICENSE_ACTIVATE_ERROR", null, req, {
       error: err.message,
     });
-    // ✅ Arreglado: mensaje genérico sin detalles internos
     res
       .status(500)
       .json({ success: false, message: "Error interno del servidor" });

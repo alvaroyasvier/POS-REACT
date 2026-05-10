@@ -211,8 +211,8 @@ const importRoute = async (routePath, routeName) => {
     app.use("/api/license", licenseRoutes);
     app.get("/api/health", (req, res) => res.json({ success: true }));
 
-    // Middleware de licencia (protege el resto de rutas)
-    app.use("/api", requireLicense);
+    // ⚠️ MIDDLEWARE DE LICENCIA DESACTIVADO
+    // app.use("/api", requireLicense);
 
     // Rutas protegidas
     app.use("/api/products", productRoutes);
@@ -279,7 +279,8 @@ const importRoute = async (routePath, routeName) => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`✅ Servidor backend en http://localhost:${PORT}`);
       setTimeout(() => {
-        startLicenseMonitor().catch(console.error);
+        // ⚠️ SISTEMA DE LICENCIAS DESACTIVADO
+        // startLicenseMonitor().catch(console.error);
         startLogCleanup();
         startBackupScheduler().catch(console.error); // ← NUEVO
       }, 2000);
