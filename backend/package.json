@@ -7,7 +7,7 @@
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "start": "node server.js",
     "electron": "cross-env NODE_ENV=development electron .",
-    "build:frontend": "cd frontend && npm run build",
+    "build:frontend": "cd ../frontend && npm run build",
     "prepack": "npm run build:frontend",
     "dist": "electron-builder"
   },
